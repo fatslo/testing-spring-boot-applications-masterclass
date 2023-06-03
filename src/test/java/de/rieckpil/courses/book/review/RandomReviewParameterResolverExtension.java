@@ -19,6 +19,7 @@ public class RandomReviewParameterResolverExtension implements ParameterResolver
     "I was reading the book and I think the book is okay. I have read better books and I think I know what's good",
     "Good book with good agenda and good example. I can recommend for everyone");
 
+  //Die Annotation kann einfach inline hier gemacht werden
   @Retention(RetentionPolicy.RUNTIME)
   @Target(PARAMETER)
   public @interface RandomReview {
