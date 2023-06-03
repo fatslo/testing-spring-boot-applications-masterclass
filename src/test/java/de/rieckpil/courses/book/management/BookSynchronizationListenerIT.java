@@ -5,6 +5,7 @@ import de.rieckpil.courses.initializer.RSAKeyGenerator;
 import de.rieckpil.courses.initializer.WireMockInitializer;
 import de.rieckpil.courses.stubs.OAuth2Stubs;
 import de.rieckpil.courses.stubs.OpenLibraryStubs;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +20,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
 
+import java.io.IOException;
 import java.util.UUID;
 
 @SpringBootTest
@@ -50,15 +52,18 @@ class BookSynchronizationListenerIT {
     registry.add("spring.datasource.username", database::getUsername);
     registry.add("sqs.book-synchronization-queue", () -> QUEUE_NAME);
   }
-
   @TestConfiguration
   static class TestConfig {
     @Bean
-    public AmazonSQSAsync amazonSQSAsync() {
+    public AmazonSQS amazonSQSAsync() {
       return Amazon
     }
   }
 
+  @BeforeAll
+  static void beforeAll() throws IOException, InterruptedException {
+    localStack.execInContainer("awslocal", "sqs", "create-queue", "--queue-name", QUEUE_NAME);
+  }
   @Autowired
   private WebTestClient webTestClient;
 
