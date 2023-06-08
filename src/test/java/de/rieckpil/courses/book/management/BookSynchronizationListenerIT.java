@@ -1,6 +1,12 @@
 package de.rieckpil.courses.book.management;
 
 import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import de.rieckpil.courses.initializer.RSAKeyGenerator;
 import de.rieckpil.courses.initializer.WireMockInitializer;
 import de.rieckpil.courses.stubs.OAuth2Stubs;
@@ -12,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -23,12 +30,17 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("integration-test")
+@ContextConfiguration(initializers = {WireMockInitializer.class})
 class BookSynchronizationListenerIT {
 
   @Container
@@ -74,29 +86,72 @@ class BookSynchronizationListenerIT {
   @Autowired
   private SqsTemplate sqsTemplate;
 
-//  @Autowired
-//  private WebTestClient webTestClient;
-//
-//  @Autowired
-//  private RSAKeyGenerator rsaKeyGenerator;
-//
-//  @Autowired
-//  private OAuth2Stubs oAuth2Stubs;
-//
-//  @Autowired
-//  private OpenLibraryStubs openLibraryStubs;
-//
-//  @Autowired
-//  private BookRepository bookRepository;
+  //webTestClient ist automatisch konfiguriert, da @SpringBootTest mit echtem
+  //Tomcat ausgefuehrt wird auf RandomPort.
+  @Autowired
+  private WebTestClient webTestClient;
+
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+  @Autowired
+  private RSAKeyGenerator rsaKeyGenerator;
+
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+  @Autowired
+  private OAuth2Stubs oAuth2Stubs;
+
+  @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+  @Autowired
+  private OpenLibraryStubs openLibraryStubs;
+
+  @Autowired
+  private BookRepository bookRepository;
 
   @Test
   void shouldStartContextWhenAllInfrastructureIsAvailable() {
     assertNotNull(sqsTemplate);
+    assertNotNull(webTestClient);
+    assertNotNull(rsaKeyGenerator);
+    assertNotNull(oAuth2Stubs);
+    assertNotNull(openLibraryStubs);
+    assertNotNull(bookRepository);
   }
-//  @Test
-//  void shouldGetSuccessWhenClientIsAuthenticated() throws JOSEException {
-//  }
-//
+  @Test
+  void shouldGetSuccessWhenClientIsAuthenticated() throws JOSEException {
+    // Mache Request zu geschuetztem Endpoint und vergewissere dass mit authentifiziertem
+    // Benutzer, also gueltigem authorization-token im Header, eine 200er Antwort
+    // vom Server kommt
+    JWSHeader jwsHeader = new JWSHeader.Builder(JWSAlgorithm.RS256)
+      .type(JOSEObjectType.JWT)
+      .keyID(RSAKeyGenerator.KEY_ID)
+      .build();
+
+    JWTClaimsSet payload =
+      new JWTClaimsSet.Builder()
+        .issuer(oAuth2Stubs.getIssuerUri())
+        .audience("account")
+        .subject("duke")
+        .claim("preferred_username", "duke")
+        .claim("email", "duke@spring.io")
+        .claim("scope", "openid email profile")
+        .claim("azp", "react-client")
+        .claim("realm_access", Map.of("roles", List.of()))
+        .expirationTime(Date.from(Instant.now().plusSeconds(120)))
+        .issueTime(new Date())
+        .build();
+
+    SignedJWT signedJWT = new SignedJWT(jwsHeader, payload);
+    signedJWT.sign(new RSASSASigner(rsaKeyGenerator.getPrivateKey()));
+
+
+    webTestClient
+      .get()
+      .uri("/api/books/reviews/statistics")
+      .header(HttpHeaders.AUTHORIZATION, "Bearer " + signedJWT.serialize())
+      .exchange()
+      .expectStatus().is2xxSuccessful()
+      ;
+  }
+
 //  @Test
 //  void shouldReturnBookFromAPIWhenApplicationConsumesNewSyncRequest() {
 //  }

@@ -24,14 +24,16 @@ public class WebSecurityConfig {
         .requestMatchers(EndpointRequest.to(HealthEndpoint.class)).permitAll()
         .anyRequest().permitAll()
       )
-      .sessionManagement()
-      .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-      .and()
-      .cors()
-      .and()
-      .csrf().disable()
+      .sessionManagement(c -> {
+      c.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+      })
+      .cors(c -> { })
+      .csrf(c -> {
+        c.disable();
+      })
       .oauth2ResourceServer(oauth2 ->
-        oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(new CustomAuthenticationConverter())));
+        oauth2.jwt(
+          jwt -> jwt.jwtAuthenticationConverter(new CustomAuthenticationConverter())));
 
     return httpSecurity.build();
   }

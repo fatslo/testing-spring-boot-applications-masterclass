@@ -68,9 +68,10 @@ public class WireMockInitializer implements ApplicationContextInitializer<Config
       }
     });
 
-    TestPropertyValues
-      .of(
-        "clients.open-library.base-url=http://localhost:" + wireMockServer.port() + "/openLibrary"
-      ).applyTo(applicationContext);
+    TestPropertyValues.of(
+        "clients.open-library.base-url=http://localhost:"
+          + wireMockServer.port()
+          + "/openLibrary")
+      .applyTo(applicationContext);
   }
 }

@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.0.5</version>
+    <version>3.1.0</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
 
@@ -20,7 +20,7 @@
     <java.version>17</java.version>
     <node.version>v16.13.0</node.version>
     <spring-cloud-aws.version>3.0.1</spring-cloud-aws.version>
-    <testcontainers.version>1.17.6</testcontainers.version>
+    <testcontainers.version>1.18.3</testcontainers.version>
     <wiremock.version>2.35.0</wiremock.version>
     <awaitility.version>4.2.0</awaitility.version>
     <p6spy.version>3.9.1</p6spy.version>
@@ -122,6 +122,12 @@
       <version>${p6spy.version}</version>
     </dependency>
 
+<!--    Since 3.1 you can use ServiceConnection-->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
