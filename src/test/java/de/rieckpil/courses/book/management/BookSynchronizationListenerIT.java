@@ -12,7 +12,9 @@ import de.rieckpil.courses.initializer.WireMockInitializer;
 import de.rieckpil.courses.stubs.OAuth2Stubs;
 import de.rieckpil.courses.stubs.OpenLibraryStubs;
 import io.awspring.cloud.sqs.operations.SqsTemplate;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,12 +32,14 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.awaitility.Awaitility.given;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -54,13 +58,15 @@ class BookSynchronizationListenerIT {
 
   @Container
   static LocalStackContainer localStack =
-    new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.0.2"))
+    new LocalStackContainer(DockerImageName.parse("localstack/localstack:2.1.0"))
       .withServices(LocalStackContainer.Service.SQS)
 //      .withEnv("DEFAULT_REGION", "eu-central-1")
 //      .withReuse(true)
     ;
 
   private static final String QUEUE_NAME = UUID.randomUUID().toString();
+  private static final String ISBN = "9780596004651";
+  private static String VALID_RESPONSE;
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
     registry.add("spring.datasource.url", database::getJdbcUrl);
@@ -78,9 +84,21 @@ class BookSynchronizationListenerIT {
     localStack.execInContainer("awslocal", "sqs", "create-queue", "--queue-name", QUEUE_NAME);
   }
 
+
   static {
     database.start();
     localStack.start();
+    try {
+      VALID_RESPONSE =
+        new String(
+          BookSynchronizationListenerIT.class
+            .getClassLoader()
+            .getResourceAsStream("stubs/openlibrary/success-" + ISBN + ".json")
+            .readAllBytes());
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
   }
 
   @Autowired
@@ -105,6 +123,17 @@ class BookSynchronizationListenerIT {
 
   @Autowired
   private BookRepository bookRepository;
+
+  @BeforeEach
+  void cleanUp() {
+    this.bookRepository.deleteAll();
+  }
+
+  @AfterEach
+  void tearDown() {
+    this.bookRepository.deleteAll();
+  }
+
 
   @Test
   void shouldStartContextWhenAllInfrastructureIsAvailable() {
@@ -152,7 +181,39 @@ class BookSynchronizationListenerIT {
       ;
   }
 
-//  @Test
-//  void shouldReturnBookFromAPIWhenApplicationConsumesNewSyncRequest() {
-//  }
+  @Test
+  void shouldReturnBookFromAPIWhenApplicationConsumesNewSyncRequest() {
+    webTestClient
+      .get()
+      .uri("/api/books")
+      .exchange()
+      .expectStatus().isOk()
+      .expectBody().jsonPath("$.size()").isEqualTo(0)
+      ;
+
+    this.openLibraryStubs.stubForSuccessfulBookResponse(ISBN, VALID_RESPONSE);
+
+    this.sqsTemplate.send(
+      QUEUE_NAME,
+      """
+          {
+            "isbn": "%s"
+          }
+        """.formatted(ISBN));
+
+      given()
+        .atMost(Duration.ofSeconds(5))
+        .await()
+        .untilAsserted(() -> {
+          webTestClient
+            .get()
+            .uri("/api/books")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.size()").isEqualTo(1)
+            .jsonPath("$[0].isbn").isEqualTo(ISBN)
+          ;
+        });
+  }
 }
