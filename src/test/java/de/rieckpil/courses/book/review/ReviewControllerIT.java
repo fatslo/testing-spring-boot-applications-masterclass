@@ -76,6 +76,7 @@ class ReviewControllerIT extends AbstractIntegrationTest {
         .getResponseHeaders();
 
     System.out.println("responseHeaders.getLocation() = " + responseHeaders.getLocation());
+
     this.webTestClient
       .get()
       .uri(responseHeaders.getLocation())
@@ -95,5 +96,56 @@ class ReviewControllerIT extends AbstractIntegrationTest {
 
   @Test
   void shouldReturnReviewStatisticWhenMultipleReviewsForBookFromDifferentUsersExist() throws JOSEException {
+    String reviewPayload =
+      """
+    {
+      "reviewTitle" : "Great book with lots of tips & tricks",
+      "reviewContent" : "I can really recommend reading this book. It includes up-to-date library versions and real-world examples",
+      "rating": %d
+    }
+    """;
+    this.webTestClient
+      .post()
+      .uri("/api/books/{isbn}/reviews", ISBN)
+      .header(HttpHeaders.AUTHORIZATION,
+        "Bearer " + getSignedJWT("mike", "mike@spring.io"))
+      .contentType(MediaType.APPLICATION_JSON) //TODO Was passiert ohne?
+      .bodyValue(reviewPayload.formatted(5))
+      .exchange()
+      .expectStatus()
+      ;
+    this.webTestClient
+      .post()
+      .uri("/api/books/{isbn}/reviews", ISBN)
+      .header(HttpHeaders.AUTHORIZATION,
+        "Bearer " + getSignedJWT("duke", "duke@spring.io"))
+      .contentType(MediaType.APPLICATION_JSON) //TODO Was passiert ohne?
+      .bodyValue(reviewPayload.formatted(3))
+      .exchange()
+      .expectStatus()
+    ;
+    this.webTestClient
+      .post()
+      .uri("/api/books/{isbn}/reviews", ISBN)
+      .header(HttpHeaders.AUTHORIZATION,
+        "Bearer " + getSignedJWT("sandy", "sandy@spring.io"))
+      .contentType(MediaType.APPLICATION_JSON) //TODO Was passiert ohne?
+      .bodyValue(reviewPayload.formatted(4))
+      .exchange()
+      .expectStatus()
+    ;
+
+    this.webTestClient
+      .get()
+      .uri("/api/books/reviews/statistics")
+      .header(HttpHeaders.AUTHORIZATION, "Bearer " + getSignedJWT())
+      .exchange()
+      .expectStatus().isOk()
+      .expectBody()
+      .jsonPath("$.size()").isEqualTo(1)
+      .jsonPath("$[0].isbn").isEqualTo(ISBN)
+      .jsonPath("$[0].ratings").isEqualTo(3)
+      .jsonPath("$[0].avg").isEqualTo(4)
+      ;
   }
 }
