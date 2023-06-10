@@ -217,3 +217,26 @@ services:
 ```
 
 Next, start everything with `docker-compose up` and watch the following video to [configure Keycloak manually](https://vimeo.com/458246315).
+
+
+# Getting Started
+
+```shell
+# KONSOLE 2
+$ dcom up -d
+# KONSOLE 3
+$ ./mvnw clean spring-boot:run
+```
+
+[Keycloak](http://localhost:8889/auth/)
+[Anwendung](http://localhost:8081)
+
+Logins:
+- duke/dukeduke
+- mike/mikemike
+
+# Tests
+
+```sh
+$ ./mvnw test -Dskip.npm
+```

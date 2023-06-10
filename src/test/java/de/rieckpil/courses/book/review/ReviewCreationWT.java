@@ -89,6 +89,21 @@ class ReviewCreationWT extends AbstractWebTest {
 
   @Test
   void shouldCreateReviewAndDisplayItInReviewList() {
+    assertNotNull(bookRepository);
+    open("/");
+
+    performLogin();
+  }
+  void performLogin() {
+    screenshot("dashboard_view");
+
+    $("button.ui").click();
+    $("#kc-login").should(Condition.appear);
+    $("#username").val("duke");
+    $("#password").val("dukeduke");
+
+    screenshot("login_before_submit");
+    $("#kc-login").click();
   }
 
   private void createBook() {
