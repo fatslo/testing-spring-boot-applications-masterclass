@@ -12,7 +12,7 @@ spring:
     hibernate:
       ddl-auto: validate
   main:
-    allow-bean-definition-overriding: true
+#    allow-bean-definition-overriding: true
   cloud:
     aws:
       region:
