@@ -1,3 +1,5 @@
+[Course Login](https://rieckpil.de/wp-login.php)
+
 [![Masterclass](https://rieckpil.de/wp-content/uploads/2020/09/testing-spring-boot-applications-masterclass-course-logo.png)](https://rieckpil.de/testing-spring-boot-applications-masterclass/)
 
 # About the Masterclass
